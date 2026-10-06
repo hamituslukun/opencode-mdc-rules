@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.0.2 - 2026-10-06
+
+- Precompile OpenTUI TSX entrypoints so npm-installed plugins retain reactive JSX props.
+- Load the generated JavaScript adapters in both OpenCode V1 and V2.
+
 ## 1.0.1 - 2026-10-06
 
 - Resolve the V2 sidebar RPC location from synchronized session data instead of falling back to the TUI's default directory.
