@@ -132,15 +132,23 @@ describe("activation and injected context", () => {
   test("references resolve beside a rule or at project root; cycles terminate", async () => {
     const { engine, write } = await engineFixture({
       "a.mdc": "---\nalwaysApply: true\n---\nA_SENTINEL\n@nested/b\n@template.ts",
-      "nested/b.mdc": "B_SENTINEL\n@a\n@missing.ts",
+      "nested/b.mdc": "B_SENTINEL\n@a",
     })
     await write("template.ts", "TEMPLATE_SENTINEL")
     const text = await engine.context("s", context())
     expect(text.match(/A_SENTINEL/g)).toHaveLength(1)
     expect(text).toContain("B_SENTINEL")
     expect(text).toContain("TEMPLATE_SENTINEL")
-    expect(engine.snapshot("s").warnings[0]).toContain("missing.ts")
     expect(engine.snapshot("s").rules.find(r => r.id === "nested/b.mdc")?.reason).toBe("reference")
+  })
+
+  test("unresolved rule-body mentions are ignored", async () => {
+    const { engine } = await engineFixture({
+      "general.mdc": "---\nalwaysApply: true\n---\nGENERAL_SENTINEL\nAsk @agent to use @skill.",
+    })
+    const text = await engine.context("s", context())
+    expect(text).toContain("GENERAL_SENTINEL")
+    expect(engine.snapshot("s").warnings).toEqual([])
   })
 
   test("live discovery supports missing directory, changes, additions and deletions", async () => {

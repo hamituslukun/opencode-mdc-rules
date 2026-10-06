@@ -38,7 +38,7 @@ export async function renderRules(root: string, rules: readonly Rule[], initial:
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") { warnings.push(`Cannot read @${name}: ${String(error)}`); return }
       }
     }
-    warnings.push(`Reference not found inside project: @${name} (from ${from.id})`)
+    // Rule prose may contain literal @agent or @skill mentions; unresolved references are ignored.
   }
 
   const add = async (entry: Applied, depth: number) => {

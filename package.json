@@ -1,6 +1,6 @@
 {
   "name": "@hmtuslkn/opencode-mdc-rules",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Cursor-style project rules and live sidebar status for OpenCode V1 and V2",
   "type": "module",
   "license": "MIT",

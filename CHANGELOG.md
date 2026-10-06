@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.0.3 - 2026-10-06
+
+- Silently ignore unresolved `@...` references in rule prose, allowing literal agent and skill mentions without rule diagnostics.
+
 ## 1.0.2 - 2026-10-06
 
 - Precompile OpenTUI TSX entrypoints so npm-installed plugins retain reactive JSX props.
