@@ -1,6 +1,6 @@
 {
   "name": "@hmtuslkn/opencode-mdc-rules",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cursor-style project rules and live sidebar status for OpenCode V1 and V2",
   "type": "module",
   "license": "MIT",
@@ -35,7 +35,7 @@
     "prepack": "npm run check"
   },
   "dependencies": {
-    "@opencode/plugin": "2.0.23",
+    "@opencode/plugin": "2.0.24",
     "chokidar": "^4.0.3",
     "picomatch": "^4.0.3",
     "yaml": "^2.8.1",

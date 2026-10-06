@@ -4,7 +4,7 @@ import { testRender } from "@opentui/solid"
 import { RGBA } from "@opentui/core"
 import { createSignal } from "solid-js"
 import { ruleName, Sidebar, sortRules } from "../src/ui/sidebar.tsx"
-import { setup } from "../src/adapters/v2/tui.tsx"
+import { setup, withAbortTimeout } from "../src/adapters/v2/tui.tsx"
 import type { Snapshot } from "../src/core/types.ts"
 
 const snapshot = (sessionID: string, active = false): Snapshot => ({
@@ -41,7 +41,7 @@ test("V2 sidebar RPC subscription ignores other sessions and unregisters on unmo
   let stopped = false
   const ctx = {
     location: { directory: "C:/project" },
-    data: { session: { get: () => ({ location: { directory: "C:/project" } }) } },
+    data: { session: { get: () => ({ location: { directory: "C:/project" } }), sync: async () => {} } },
     client: { rpc: () => ({
       snapshot: async () => snapshot("s"),
       events: { on: (_name: string, callback: unknown) => { receive = callback; return () => { stopped = true } } },
@@ -64,6 +64,47 @@ test("V2 sidebar RPC subscription ignores other sessions and unregisters on unmo
     expect(view.captureCharFrame()).toContain("2/2 active")
   } finally { view.renderer.destroy() }
   expect(stopped).toBe(true)
+})
+
+test("V2 sidebar syncs an uncached session before choosing its RPC location", async () => {
+  let render: any
+  let session: any
+  let requestedLocation: string | undefined
+  const ctx = {
+    location: undefined,
+    data: {
+      location: { default: () => ({ directory: "C:/wrong-default" }) },
+      session: {
+        get: () => session,
+        sync: async () => { session = { location: { directory: "C:/project" } } },
+      },
+    },
+    client: { rpc: () => ({
+      snapshot: async (_input: unknown, options: any) => {
+        requestedLocation = options.location.directory
+        return snapshot("s")
+      },
+      events: { on: () => () => {} },
+    }) },
+    theme: { text: { base: "#ffffff", weak: "#888888" } },
+    ui: { slot: (claim: any) => { render = claim.render; return () => {} }, dialog: { alert: async () => {} } },
+  }
+  await setup(ctx as never)
+  const view = await testRender(() => render({ sessionID: "s" }), { width: 50, height: 12 })
+  try {
+    await view.waitForFrame(frame => frame.includes("1/2 active"))
+    expect(requestedLocation).toBe("C:/project")
+  } finally { view.renderer.destroy() }
+})
+
+test("V2 RPC waits have a deadline", async () => {
+  const controller = new AbortController()
+  let signal: AbortSignal | undefined
+  await expect(withAbortTimeout(controller.signal, 5, async value => {
+    signal = value
+    return new Promise<never>(() => {})
+  })).rejects.toThrow("timed out after 5ms")
+  expect(signal?.aborted).toBe(true)
 })
 
 test("rule names use only the basename on both path styles", () => {

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.0.1 - 2026-10-06
+
+- Resolve the V2 sidebar RPC location from synchronized session data instead of falling back to the TUI's default directory.
+- Stop displaying an indefinite connecting state when the rules RPC does not respond.
+- Cover real-session, location-scoped RPC transport in the V2 smoke test.
+
 ## 1.0.0 - 2026-10-06
 
 - Initial public release.

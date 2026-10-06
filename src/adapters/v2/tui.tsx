@@ -6,14 +6,44 @@ import type { Snapshot } from "../../core/types.ts"
 import { RulesRpc } from "../../rpc.ts"
 import { ruleDetails, Sidebar } from "../../ui/sidebar.tsx"
 
+const REQUEST_TIMEOUT_MS = 10_000
+
+export async function withAbortTimeout<T>(
+  parent: AbortSignal,
+  milliseconds: number,
+  operation: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController()
+  let rejectDeadline!: (reason: Error) => void
+  const deadline = new Promise<T>((_resolve, reject) => { rejectDeadline = reject })
+  const cancel = (reason: unknown) => {
+    const error = reason instanceof Error ? reason : new Error("Rules server request aborted")
+    controller.abort(error)
+    rejectDeadline(error)
+  }
+  const abort = () => cancel(parent.reason)
+  if (parent.aborted) abort()
+  else parent.addEventListener("abort", abort, { once: true })
+  const timer = setTimeout(() => {
+    const error = new Error(`Rules server timed out after ${milliseconds}ms`)
+    cancel(error)
+  }, milliseconds)
+  try {
+    return await Promise.race([operation(controller.signal), deadline])
+  } finally {
+    clearTimeout(timer)
+    parent.removeEventListener("abort", abort)
+  }
+}
+
 function Rules(props: { ctx: Plugin.Context; sessionID: string }) {
   const [snapshot, setSnapshot] = createSignal<Snapshot>()
   const [error, setError] = createSignal<string>()
   createEffect(() => {
     const id = props.sessionID
-    const location = props.ctx.data.session.get(id)?.location ?? props.ctx.location ?? props.ctx.data.location.default()
     const rpc = props.ctx.client.rpc(RulesRpc)
     const controller = new AbortController()
+    let location: ReturnType<typeof props.ctx.data.location.default> | undefined
     let busy = false
     let changes = 0
     setSnapshot(undefined)
@@ -22,15 +52,26 @@ function Rules(props: { ctx: Plugin.Context; sessionID: string }) {
       busy = true
       const before = changes
       try {
-        const value = await rpc.snapshot({ sessionID: id }, { location, signal: controller.signal })
+        const value = await withAbortTimeout(controller.signal, REQUEST_TIMEOUT_MS, async signal => {
+          let session = props.ctx.data.session.get(id)
+          if (!session) {
+            await props.ctx.data.session.sync(id)
+            if (signal.aborted) throw signal.reason
+            session = props.ctx.data.session.get(id)
+          }
+          location = session?.location ?? props.ctx.location
+          if (!location) throw new Error(`Session location unavailable: ${id}`)
+          return rpc.snapshot({ sessionID: id }, { location, signal })
+        })
         if (!controller.signal.aborted && before === changes) { setSnapshot(value); setError(undefined) }
       } catch (error) {
         if (!controller.signal.aborted && before === changes) { setSnapshot(undefined); setError(`Rules server unavailable: ${String(error)}`) }
       } finally { busy = false }
     }
     const unsubscribe = rpc.events.on("updated", event => {
-      if (pathKey(event.location.directory) !== pathKey(location.directory)) return
+      if (location && pathKey(event.location.directory) !== pathKey(location.directory)) return
       if (event.data.sessionID === id) {
+        location ??= event.location
         changes++
         setSnapshot(event.data)
         setError(undefined)

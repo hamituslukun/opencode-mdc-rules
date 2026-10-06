@@ -46,12 +46,20 @@ try {
     await server.exited
     assert.fail(`OpenCode server did not become ready:\n${await stdout}\n${await stderr}`)
   }
-  const response = await fetch(`${base}/api/rpc/opencode-mdc-rules/snapshot?directory=${encodeURIComponent(project)}`, {
-    method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ input: { sessionID: "" } }),
+  const location = `location%5Bdirectory%5D=${encodeURIComponent(project)}`
+  const created = await fetch(`${base}/api/session?${location}`, {
+    method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: "{}",
+  })
+  const createdText = await created.text()
+  assert(created.ok, `Session creation failed (${created.status}): ${createdText}`)
+  const sessionID = JSON.parse(createdText).data.id as string
+  const response = await fetch(`${base}/api/rpc/opencode-mdc-rules/snapshot?${location}`, {
+    method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ input: { sessionID } }),
   })
   const text = await response.text()
   assert(response.ok, `RPC failed (${response.status}): ${text}`)
   const body = JSON.parse(text)
+  assert.equal(body.output.sessionID, sessionID)
   assert.equal(body.output.rules[0].id, "general.md")
   assert.equal(body.output.rules[0].active, true)
   assert.equal(body.output.rules[0].reason, "always")
