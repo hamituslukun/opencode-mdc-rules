@@ -31,6 +31,3 @@ jobs:
           package_version=$(node -p "require('./package.json').version")
           test "${{ github.event.release.tag_name }}" = "v${package_version}"
       - run: npm publish
-        env:
-          # Required only to bootstrap 1.0.0. Remove after configuring npm Trusted Publishing.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
